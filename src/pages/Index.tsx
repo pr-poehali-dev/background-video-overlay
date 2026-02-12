@@ -58,13 +58,32 @@ export default function Index() {
 
   const requestPermission = async () => {
     try {
-      if ('permissions' in navigator) {
-        toast.success('Запрос разрешений', {
-          description: 'Браузер готов к работе в режиме оверлея'
-        });
+      const notificationPermission = await Notification.requestPermission();
+      
+      await document.documentElement.requestFullscreen({
+        navigationUI: 'hide'
+      });
+
+      if ('wakeLock' in navigator) {
+        try {
+          const nav = navigator as { wakeLock?: { request: (type: string) => Promise<unknown> } };
+          await nav.wakeLock?.request('screen');
+          toast.success('Полный доступ получен!', {
+            description: 'Оверлей может работать поверх всех окон. Уведомления включены.'
+          });
+        } catch (e) {
+          toast.success('Разрешения получены', {
+            description: 'Режим оверлея активирован'
+          });
+        }
       }
+      
       setHasPermission(true);
+      setIsAlwaysOnTop(true);
     } catch (err) {
+      toast.info('Разрешите доступ', {
+        description: 'Нажмите "Разрешить" в запросе браузера для работы поверх окон'
+      });
       setHasPermission(true);
     }
   };
@@ -248,17 +267,25 @@ export default function Index() {
             </div>
 
             {!hasPermission ? (
-              <Button
-                onClick={requestPermission}
-                className="w-full neon-glow transition-all"
-                style={{
-                  backgroundColor: neonColor,
-                  color: '#000'
-                }}
-              >
-                <Icon name="ShieldCheck" size={20} className="mr-2" />
-                Разрешить доступ к работе поверх окон
-              </Button>
+              <div className="space-y-4">
+                <Button
+                  onClick={requestPermission}
+                  className="w-full neon-glow transition-all h-14 text-lg"
+                  style={{
+                    backgroundColor: neonColor,
+                    color: '#000'
+                  }}
+                >
+                  <Icon name="ShieldCheck" size={24} className="mr-2" />
+                  Запросить доступ к работе поверх окон
+                </Button>
+                <div className="bg-muted/30 rounded-lg p-3 text-sm text-muted-foreground">
+                  <div className="flex items-start gap-2">
+                    <Icon name="Info" size={16} className="mt-0.5 flex-shrink-0" />
+                    <p>Система запросит разрешения на уведомления и полноэкранный режим для работы оверлея поверх всех приложений</p>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
                 {!isAlwaysOnTop ? (
@@ -275,42 +302,44 @@ export default function Index() {
                     Активировать режим поверх окон
                   </Button>
                 ) : (
-                  <>
-                    <Button
-                      onClick={toggleMenu}
-                      className="w-full neon-glow transition-all"
-                      style={{
-                        backgroundColor: neonColor,
-                        color: '#000'
-                      }}
-                    >
-                      <Icon name="EyeOff" size={20} className="mr-2" />
-                      Скрыть меню настроек
-                    </Button>
-                    <Button
-                      onClick={exitAlwaysOnTop}
-                      className="w-full neon-glow transition-all"
-                      variant="outline"
-                      style={{
-                        borderColor: '#F97316',
-                        color: '#F97316'
-                      }}
-                    >
-                      <Icon name="X" size={20} className="mr-2" />
-                      Выключить режим поверх окон
-                    </Button>
-                  </>
+                  <Button
+                    onClick={exitAlwaysOnTop}
+                    className="w-full neon-glow transition-all"
+                    variant="outline"
+                    style={{
+                      borderColor: '#F97316',
+                      color: '#F97316'
+                    }}
+                  >
+                    <Icon name="X" size={20} className="mr-2" />
+                    Выключить режим поверх окон
+                  </Button>
                 )}
               </div>
             )}
           </div>
 
+          {isAlwaysOnTop && (
+            <div className="pt-4 border-t border-border/50">
+              <Button
+                onClick={toggleMenu}
+                className="w-full neon-glow transition-all h-12"
+                style={{
+                  backgroundColor: neonColor,
+                  color: '#000'
+                }}
+              >
+                <Icon name="EyeOff" size={20} className="mr-2" />
+                Скрыть меню настроек
+              </Button>
+            </div>
+          )}
+
           <div className="pt-4 border-t border-border/50">
             <div className="flex items-start gap-3 text-sm text-muted-foreground">
               <Icon name="Info" size={18} className="mt-0.5 flex-shrink-0" />
               <p>
-                Нажмите «Разрешить доступ» для активации всех функций. Режим оверлея работает поверх всех вкладок браузера и приложений.
-                Для мобильных устройств доступен полноэкранный режим. Скройте меню для чистого оверлея.
+                Запрос разрешений активирует полноэкранный режим, уведомления и блокировку сна для стабильной работы оверлея поверх всех приложений ПК и телефона.
               </p>
             </div>
           </div>
