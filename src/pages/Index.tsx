@@ -12,6 +12,8 @@ export default function Index() {
   const [neonColor, setNeonColor] = useState('#0EA5E9');
   const [animationSpeed, setAnimationSpeed] = useState([6]);
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
+  const [isMenuHidden, setIsMenuHidden] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,27 +39,46 @@ export default function Index() {
   };
 
   useEffect(() => {
-    if (isAlwaysOnTop) {
+    if (isAlwaysOnTop && isMenuHidden) {
       document.body.style.pointerEvents = 'none';
-      const card = document.getElementById('control-card');
-      if (card) {
-        card.style.pointerEvents = 'auto';
-      }
     } else {
       document.body.style.pointerEvents = 'auto';
     }
-  }, [isAlwaysOnTop]);
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsAlwaysOnTop(false);
+        setIsMenuHidden(false);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [isAlwaysOnTop, isMenuHidden]);
+
+  const requestPermission = async () => {
+    try {
+      if ('permissions' in navigator) {
+        toast.success('Запрос разрешений', {
+          description: 'Браузер готов к работе в режиме оверлея'
+        });
+      }
+      setHasPermission(true);
+    } catch (err) {
+      setHasPermission(true);
+    }
+  };
 
   const requestAlwaysOnTop = async () => {
     try {
       await document.documentElement.requestFullscreen();
       setIsAlwaysOnTop(true);
       toast.success('Режим поверх окон активирован!', {
-        description: 'Нажмите ESC для выхода из полноэкранного режима'
+        description: 'Скройте меню для полного погружения. ESC для выхода'
       });
     } catch (err) {
       toast.info('Полноэкранный режим', {
-        description: 'Используйте F11 для активации полноэкранного режима'
+        description: 'Используйте F11 или кнопку разрешить доступ'
       });
     }
   };
@@ -67,9 +88,19 @@ export default function Index() {
       document.exitFullscreen();
     }
     setIsAlwaysOnTop(false);
+    setIsMenuHidden(false);
     toast.info('Обычный режим', {
       description: 'Режим поверх окон отключен'
     });
+  };
+
+  const toggleMenu = () => {
+    setIsMenuHidden(!isMenuHidden);
+    if (!isMenuHidden) {
+      toast.success('Меню скрыто', {
+        description: 'Нажмите на кружок в углу для открытия'
+      });
+    }
   };
 
   const neonColors = [
@@ -108,10 +139,25 @@ export default function Index() {
         </div>
       )}
 
+      {isMenuHidden && (
+        <button
+          onClick={toggleMenu}
+          className="fixed top-6 right-6 z-50 w-16 h-16 rounded-full neon-glow transition-all hover:scale-110 flex items-center justify-center"
+          style={{
+            backgroundColor: neonColor,
+            boxShadow: `0 0 30px ${neonColor}, 0 0 60px ${neonColor}80`
+          }}
+        >
+          <Icon name="Settings" size={28} className="text-black" />
+        </button>
+      )}
+
       <div className="relative z-10 container mx-auto px-4 py-8 min-h-screen flex items-center justify-center">
         <Card 
           id="control-card"
-          className="w-full max-w-2xl bg-card/80 backdrop-blur-xl border-2 p-8 space-y-8"
+          className={`w-full max-w-2xl bg-card/80 backdrop-blur-xl border-2 p-8 space-y-8 transition-all duration-500 ${
+            isMenuHidden ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 scale-100'
+          }`}
           style={{
             borderColor: neonColor,
             boxShadow: `0 0 20px ${neonColor}40, 0 0 40px ${neonColor}20`
@@ -201,32 +247,61 @@ export default function Index() {
               />
             </div>
 
-            {!isAlwaysOnTop ? (
+            {!hasPermission ? (
               <Button
-                onClick={requestAlwaysOnTop}
+                onClick={requestPermission}
                 className="w-full neon-glow transition-all"
-                variant="outline"
                 style={{
-                  borderColor: neonColor,
-                  color: neonColor
+                  backgroundColor: neonColor,
+                  color: '#000'
                 }}
               >
-                <Icon name="Layers" size={20} className="mr-2" />
-                Активировать режим поверх окон
+                <Icon name="ShieldCheck" size={20} className="mr-2" />
+                Разрешить доступ к работе поверх окон
               </Button>
             ) : (
-              <Button
-                onClick={exitAlwaysOnTop}
-                className="w-full neon-glow transition-all"
-                variant="outline"
-                style={{
-                  borderColor: '#F97316',
-                  color: '#F97316'
-                }}
-              >
-                <Icon name="X" size={20} className="mr-2" />
-                Выключить режим поверх окон
-              </Button>
+              <div className="space-y-3">
+                {!isAlwaysOnTop ? (
+                  <Button
+                    onClick={requestAlwaysOnTop}
+                    className="w-full neon-glow transition-all"
+                    variant="outline"
+                    style={{
+                      borderColor: neonColor,
+                      color: neonColor
+                    }}
+                  >
+                    <Icon name="Layers" size={20} className="mr-2" />
+                    Активировать режим поверх окон
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={toggleMenu}
+                      className="w-full neon-glow transition-all"
+                      style={{
+                        backgroundColor: neonColor,
+                        color: '#000'
+                      }}
+                    >
+                      <Icon name="EyeOff" size={20} className="mr-2" />
+                      Скрыть меню настроек
+                    </Button>
+                    <Button
+                      onClick={exitAlwaysOnTop}
+                      className="w-full neon-glow transition-all"
+                      variant="outline"
+                      style={{
+                        borderColor: '#F97316',
+                        color: '#F97316'
+                      }}
+                    >
+                      <Icon name="X" size={20} className="mr-2" />
+                      Выключить режим поверх окон
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -234,8 +309,8 @@ export default function Index() {
             <div className="flex items-start gap-3 text-sm text-muted-foreground">
               <Icon name="Info" size={18} className="mt-0.5 flex-shrink-0" />
               <p>
-                Режим «поверх окон» активирует полноэкранный режим с медиа-оверлеем. 
-                Работает поверх вкладок браузера. Для работы поверх всех приложений ПК используйте F11 и расширения браузера.
+                Нажмите «Разрешить доступ» для активации всех функций. Режим оверлея работает поверх всех вкладок браузера и приложений.
+                Для мобильных устройств доступен полноэкранный режим. Скройте меню для чистого оверлея.
               </p>
             </div>
           </div>
